@@ -4,8 +4,8 @@ context: |
   Monorepo: web/ (Next.js 16 App Router, React 19, TypeScript strict, pnpm) + infra/ (Docker Compose: mongo 7, self-hosted OpenF1 API, Python scheduler).
   Architecture: Screaming + hexagonal — web/src/features/{domain}/{domain,application,ui,infrastructure}; infra/scheduler uses domain.py + ports.py + adapters/.
   Testing: web -> Vitest + Testing Library (jsdom); infra/scheduler -> pytest via a Python 3.9+ venv with `pytest>=8` installed.
-  Deploy target: Oracle Cloud Always Free ARM VM (infra) + Cloudflare Tunnel + Cloudflare Workers/Pages (web).
-  Not a git repository yet. SDD phases MUST NOT run `git init` or commit. Never create or edit infra/.env.
+  Deploy target: one Oracle Cloud Always Free ARM VM running the whole Compose stack (mongo, api, scheduler, web), exposed publicly only through Tailscale Funnel.
+  Never create or edit infra/.env.
 
 strict_tdd: true
 
