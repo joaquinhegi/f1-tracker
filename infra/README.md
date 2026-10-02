@@ -10,6 +10,9 @@ Runs [OpenF1](https://github.com/br-g/openf1) locally with Docker Compose. It re
 
 No MQTT broker: OpenF1 only uses MQTT to push live updates to subscribers. Ingestion writes straight to MongoDB.
 
+This file covers local development only. For the production VM (bootstrap,
+deploy, backups, alerts), see the root [`RUNBOOK.md`](../RUNBOOK.md).
+
 ## 1. Get an F1TV token (optional, recommended)
 
 You need an F1TV subscription. Follow
@@ -124,16 +127,7 @@ curl -s "http://127.0.0.1:8000/v1/drivers?session_key=11727" | head -c 200
 
 ## Live recording without an F1TV token
 
-Without `F1_TOKEN` the recorder never writes anything. OpenF1 kills it every 5 minutes ("file empty after 5 minutes") and restarts it. What the evidence shows (fastf1_livetiming at the pinned `FASTF1_LIVETIMING_SHA`, logs of 2026-10-02):
-
-- OpenF1 only passes `--auth` when `F1_TOKEN` is set. Without it, `fastf1_livetiming save` uses the **legacy SignalR client** (`signalr/client.py`, `https://livetiming.formula1.com/signalr`). With it, it uses the SignalR Core client (`/signalrcore`).
-- The legacy negotiate request now answers **HTTP 401 with an empty body** and `WWW-Authenticate: Basic` / `Bearer` (checked with curl on 2026-10-02, no session live). The client calls `request.json()` on it: `JSONDecodeError: Expecting value`.
-- That error then hits a second bug. The client's `except websockets.exceptions.ConnectionClosed` fails with websockets 12 (`AttributeError: module 'websockets' has no attribute 'exceptions'`), the connection task dies ("Task exception was never retrieved"), and the output file stays empty.
-- `POST https://livetiming.formula1.com/signalrcore/negotiate?negotiateVersion=1` without a token answers **200**.
-
-Conclusion: the legacy, unauthenticated endpoint now refuses the connection itself. So the no-token path records **no topic at all**, not just the F1TV-only ones (`CarData.z`, `Position.z`).
-
-What is not proven: whether F1 would stream any topics over SignalR Core without a token. Its negotiate works anonymously, but a subscription without a token was not tested: no session was live, and fastf1_livetiming's CLI does not expose its `no_auth` option.
+Without `F1_TOKEN` the recorder never writes anything. OpenF1 kills it every 5 minutes ("file empty after 5 minutes") and restarts it. Root cause (fastf1_livetiming at the pinned `FASTF1_LIVETIMING_SHA`, confirmed 2026-10-02): without a token, OpenF1 falls back to the **legacy SignalR client**, whose negotiate request now answers `401` with an empty body; the client's own `request.json()` and its `websockets.exceptions.ConnectionClosed` handler (broken under websockets 12) both fail on that response, so the connection task dies silently and the output file stays empty. The authenticated SignalR Core path (used when `F1_TOKEN` is set) is unaffected. So the no-token path records **no topic at all**, not just the F1TV-only ones (`CarData.z`, `Position.z`). Not proven: whether SignalR Core would stream anything anonymously — its negotiate works without a token, but no live session was tested that way.
 
 In practice:
 
