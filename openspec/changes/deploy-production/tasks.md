@@ -29,10 +29,10 @@ Literal line uses the default 400 budget (High) for guard compatibility. The pro
 | 1 | Whole change (single PR, trimmed) | PR 1 | `pnpm --dir web test`; `cd infra/scheduler && <venv-python> -m pytest -q` | `docker compose config` + manual forced-alert/restore runbook steps (9.6–9.7) | `git revert` the PR; `tailscale funnel off` + `docker compose down` on the VM |
 
 ## Phase 1: Repo bootstrap (apply, user-authorized)
-- [ ] 1.1 Harden `.gitignore` (`node_modules/`, `.next/`, `.cache/`, `.atl/`, `*.archive.gz`, `infra/.env`); run `gitleaks dir .` clean.
-- [ ] 1.2 `git init`; commit `chore: import existing project` on `main`.
-- [ ] 1.3 `gh repo create --public --source . --push`.
-- [ ] 1.4 Branch `feat/deploy-production` off `main`.
+- [x] 1.1 Harden `.gitignore` (`node_modules/`, `.next/`, `.cache/`, `.atl/`, `*.archive.gz`, `infra/.env`); run `gitleaks dir .` clean.
+- [x] 1.2 `git init`; commit `chore: import existing project` on `main`.
+- [x] 1.3 `gh repo create --public --source . --push`.
+- [x] 1.4 Branch `feat/deploy-production` off `main`.
 
 ## Phase 2: Scheduler — Notifier port + ntfy adapter (TDD)
 - [ ] 2.1 RED `tests/test_ntfy.py`: ntfy POST never leaks the token/topic (fake opener).
