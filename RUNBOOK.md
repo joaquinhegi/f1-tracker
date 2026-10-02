@@ -17,7 +17,8 @@ on the tailnet (`tailscale up --ssh`), from `/opt/f1-tracker`.
 4. Confirm: `tailscale status` shows the node; `systemctl status
    f1-tracker-watchdog.timer f1-tracker-backup.timer` are both active.
 5. Create `infra/.env` from `infra/.env.example` with real values. Never
-   commit it.
+   commit it. Required: `RCLONE_BUCKET`, `OCI_NAMESPACE`, `OCI_COMPARTMENT`,
+   `OCI_REGION` (nightly backups), `IMAGE_PREFIX`/`IMAGE_TAG` (image pulls).
 6. First deploy: see below. The database starts empty; no backfill runs
    automatically.
 

@@ -47,6 +47,17 @@ install_rclone() {
   curl -fsSL https://rclone.org/install.sh | sh
 }
 
+configure_rclone_remote() {
+  if rclone listremotes | grep -q '^oracleobjectstorage:$'; then
+    return
+  fi
+  rclone config create oracleobjectstorage oracleobjectstorage \
+    provider instance_principal_auth \
+    namespace "${OCI_NAMESPACE:?OCI_NAMESPACE must be set}" \
+    compartment "${OCI_COMPARTMENT:?OCI_COMPARTMENT must be set}" \
+    region "${OCI_REGION:?OCI_REGION must be set}"
+}
+
 install_unattended_upgrades() {
   if dpkg -s unattended-upgrades >/dev/null 2>&1; then
     log "unattended-upgrades already installed, skipping"
@@ -70,6 +81,7 @@ main() {
   install_docker
   install_tailscale
   install_rclone
+  configure_rclone_remote
   install_unattended_upgrades
   install_systemd_units
   log "bootstrap complete: cd ${REPO_DIR}/infra && docker compose up -d --no-build"
