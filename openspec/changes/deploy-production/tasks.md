@@ -68,27 +68,10 @@ Literal line uses the default 400 budget (High) for guard compatibility. The pro
 - [x] 6.6 `ci.yml`: web/scheduler/shellcheck jobs gate arm64 matrix build of web/api/scheduler on `ubuntu-24.04-arm`; push sha+latest on main only.
 - [x] 6.7 Verify: `docker compose config` + `pnpm --dir web build` pass (also proved via a local arm64 `docker build` + run against the live api).
 
-**STOPPED HERE (2026-10-02): PR diff vs `main` reached 728/800 changed lines (baseline import excluded) after Phase 6. Phase 7 (ops scripts) and Phase 8 (docs + config) remain and cannot fit the remaining ~72-line margin — realistic estimate is 350-450+ more lines. Needs a chain-strategy/size-exception decision before continuing apply.**
+**Split (2026-10-02):** apply stopped at 787/800 changed lines after Phase 6. The SDD runtime objective for this change is capped at 800 and cannot be raised.
 
-## Phase 7: Ops scripts (apply, shellcheck-gated)
-- [ ] 7.1 `lib.sh`: shared curl/ntfy/state helpers.
-- [ ] 7.2 `watchdog.sh`: 2-min timer, diffs web/api/mongo/scheduler health via `lib.sh`.
-- [ ] 7.3 `backup.sh` (+ `restore` subcommand): `mongodump|rclone rcat` to OCI (instance-principal); prune `--min-age 7d` after success only.
-- [ ] 7.4 `bootstrap.sh`: idempotent install docker/compose/tailscale/rclone/unattended-upgrades/systemd.
-- [ ] 7.5 `cloud-init.yaml` + minimal `systemd/*` (watchdog+backup timers).
-- [ ] 7.6 `shellcheck infra/ops/*.sh` clean.
+The user chose a **single PR** with `size:exception`. The former Phases 7 (ops scripts), 8 (docs + config) and 9 (operator steps) therefore moved to the change `openspec/changes/deploy-production-ops/`. Its commits land on the same branch, `feat/deploy-production`.
 
-## Phase 8: Docs + config (apply)
-- [ ] 8.1 `RUNBOOK.md`: terse checklists (bootstrap, deploy, token refresh, backup/restore, rebuild, utilisation).
-- [ ] 8.2 Trim `README.md`; point at `RUNBOOK.md`.
-- [ ] 8.3 `config.yaml`: remove git ban note, replace Cloudflare with Tailscale Funnel.
-- [ ] 8.4 Re-run `gitleaks dir .`; confirm `infra/.env` stays untracked.
+## Phases 7–9: moved
 
-## Phase 9: Operator-only steps (NOT apply-executable)
-- [ ] 9.1 [OPERATOR] Create Oracle A1 VM (Always Free, Ubuntu 24.04 arm64); create OCI dynamic group + policy + Object Storage bucket.
-- [ ] 9.2 [OPERATOR] Generate single-use 1h Tailscale auth key for cloud-init; enable Funnel in the tailnet ACL.
-- [ ] 9.3 [OPERATOR] `gh auth login` if not already authenticated.
-- [ ] 9.4 [OPERATOR] Populate `infra/.env` on the VM (`F1_TOKEN`, `NTFY_TOPIC`); never commit it.
-- [ ] 9.5 [OPERATOR] Switch GHCR packages (web/api/scheduler) to public visibility, one-time.
-- [ ] 9.6 [OPERATOR] Forced alert test: trigger each ntfy event once; confirm receipt.
-- [ ] 9.7 [OPERATOR] Manual restore test: rebuild VM via `bootstrap.sh`; restore latest backup; confirm the stack serves it.
+See `openspec/changes/deploy-production-ops/tasks.md`.
