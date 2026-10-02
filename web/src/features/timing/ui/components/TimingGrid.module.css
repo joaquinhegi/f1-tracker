@@ -1,0 +1,335 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.toolbarActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.toolbarButton {
+  padding: var(--space-1) var(--space-3);
+  min-height: 2rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.toolbarButton:hover {
+  background: var(--color-hover);
+}
+
+.hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* The table scrolls inside its card; the page never scrolls sideways. */
+.scroller {
+  /* Containing block for the absolutely positioned (visually hidden) labels in cells. */
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/*
+ * Fixed layout: <col> widths (TimingGrid's GRID_COLUMNS) set every data
+ * column, the driver column takes the rest. Below the sum of the widths the
+ * table keeps its size and scrolls inside the card.
+ */
+.table {
+  --chip-inset: 0.375rem;
+  --driver-col: 15.5rem;
+  table-layout: fixed;
+  width: 100%;
+  min-width: calc(51rem + var(--driver-col));
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* One alignment per column, applied to its header and its cells alike. */
+.alignStart {
+  text-align: left;
+}
+
+.alignCenter {
+  text-align: center;
+}
+
+.alignEnd {
+  text-align: right;
+}
+
+/* Right-aligned headers sit over the digits, which are inset by the chip padding. */
+.table th.alignEnd {
+  padding-right: calc(var(--space-2) + var(--chip-inset));
+}
+
+.sectorHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.row {
+  cursor: pointer;
+}
+
+.row:hover td {
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-text));
+}
+
+.focused td {
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent));
+}
+
+.focused:hover td {
+  background: color-mix(in srgb, var(--color-surface) 84%, var(--color-accent));
+}
+
+/* Sticky identity columns so the driver stays visible while scrolling at 360 px.
+   Offsets match the check (2.25rem) and pos (2.75rem) column widths. */
+.stickyCheck,
+.stickyPos,
+.stickyDriver {
+  position: sticky;
+  z-index: 1;
+}
+
+.table th.stickyCheck,
+.table th.stickyPos,
+.table th.stickyDriver {
+  z-index: 2;
+}
+
+.stickyCheck {
+  left: 0;
+}
+
+.stickyPos {
+  left: 2.25rem;
+}
+
+.stickyDriver {
+  left: 5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 1px 0 0 var(--color-border);
+}
+
+/* Phones: drop the team name so the sticky driver column stays narrow. */
+@media (max-width: 30rem) {
+  .table {
+    --driver-col: 6.5rem;
+  }
+
+  .team {
+    display: none;
+  }
+}
+
+.check {
+  display: block;
+  margin: 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-accent-strong);
+  cursor: pointer;
+}
+
+.pos {
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.driver {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.colourBar {
+  width: 4px;
+  height: 1.4rem;
+  border-radius: 2px;
+  flex: none;
+}
+
+.acronym {
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.03em;
+}
+
+.team {
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.radio {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 0.7rem;
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.time {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+/* Chips fill their column, so every coloured box in a column has the same width. */
+.chip {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.1rem var(--chip-inset);
+  border-radius: var(--radius-sm);
+  text-align: inherit;
+}
+
+/* Chip-less values carry the chip's inset so all right edges line up. */
+.value {
+  display: block;
+  padding: 0.1rem var(--chip-inset);
+}
+
+.overall-best {
+  background: var(--timing-overall-bg);
+  color: var(--timing-overall-fg);
+}
+
+.personal-best {
+  background: var(--timing-personal-bg);
+  color: var(--timing-personal-fg);
+}
+
+.normal {
+  color: var(--timing-normal-fg);
+}
+
+.previous {
+  opacity: 0.5;
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+.tyre {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.compound {
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--color-text-secondary);
+  font-size: 0.6rem;
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.SOFT {
+  border-color: var(--tyre-soft);
+}
+
+.MEDIUM {
+  border-color: var(--tyre-medium);
+}
+
+.HARD {
+  border-color: var(--tyre-hard);
+}
+
+.INTERMEDIATE {
+  border-color: var(--tyre-inter);
+}
+
+.WET {
+  border-color: var(--tyre-wet);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.swatch {
+  display: inline-block;
+  padding: 0;
+  width: 1.6rem;
+  height: 0.9rem;
+}
+
+.normalSwatch {
+  background: transparent;
+  border: 1px solid var(--timing-normal-fg);
+}

@@ -1,0 +1,13 @@
+[project]
+name = "f1-scheduler"
+version = "0.1.0"
+description = "Starts OpenF1's real-time ingestor around F1 sessions"
+requires-python = ">=3.9"
+dependencies = []  # stdlib only; the OpenF1 package is provided by the image
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

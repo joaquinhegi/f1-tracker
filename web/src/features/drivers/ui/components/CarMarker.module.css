@@ -1,0 +1,53 @@
+.car {
+  transition: none;
+}
+
+.label {
+  pointer-events: none;
+}
+
+.label text {
+  font-family: var(--font-sans);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.03em;
+}
+
+.pill {
+  stroke: var(--car-label-outline);
+  vector-effect: non-scaling-stroke;
+}
+
+.pillFocused {
+  stroke: var(--color-accent);
+  vector-effect: non-scaling-stroke;
+}
+
+.focusRing {
+  fill: none;
+  stroke: var(--color-accent);
+}
+
+.focusHalo {
+  fill: var(--color-accent-soft);
+  stroke: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .focusHalo {
+    animation: halo 1.8s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+}
+
+@keyframes halo {
+  50% {
+    opacity: 0.35;
+    transform: scale(1.18);
+  }
+}
+
+.notice {
+  fill: var(--color-text-secondary);
+  font-family: var(--font-sans);
+}

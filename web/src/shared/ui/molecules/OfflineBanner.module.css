@@ -1,0 +1,10 @@
+.banner {
+  position: sticky;
+  top: var(--nav-height);
+  z-index: 9;
+  padding: var(--space-2) var(--gutter);
+  text-align: center;
+  font-size: var(--text-sm);
+  background: var(--color-accent-fill);
+  color: var(--color-on-accent);
+}

@@ -1,0 +1,10 @@
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.padded {
+  padding: clamp(var(--space-4), 3vw, var(--space-6));
+}

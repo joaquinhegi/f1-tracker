@@ -1,0 +1,34 @@
+.countdown {
+  display: flex;
+  gap: clamp(var(--space-2), 2vw, var(--space-4));
+}
+
+.unit {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3) var(--space-2);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-size: clamp(1.75rem, 1rem + 4vw, 3.5rem);
+  font-weight: var(--weight-medium);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.name {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}

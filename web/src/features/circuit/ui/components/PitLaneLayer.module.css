@@ -1,0 +1,24 @@
+.layer {
+  pointer-events: none;
+}
+
+.road,
+.centre {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.road {
+  stroke: var(--color-pit-lane-casing);
+}
+
+.centre {
+  stroke: var(--color-pit-lane);
+  opacity: 0.8;
+}
+
+.rail {
+  fill: var(--color-pit-lane-casing);
+  stroke: var(--color-border);
+}

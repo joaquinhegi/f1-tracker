@@ -1,0 +1,66 @@
+.map {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(70vh, 640px);
+}
+
+.casing,
+.track {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.casing {
+  stroke: var(--color-track-casing);
+}
+
+.track {
+  stroke: var(--color-track);
+}
+
+.startFinish line {
+  stroke: var(--color-accent);
+  stroke-linecap: round;
+}
+
+.startFinish circle {
+  fill: var(--color-accent);
+}
+
+.sector {
+  fill: none;
+  stroke: var(--sector-colour);
+  stroke-linejoin: round;
+  /* Butt ends so the colour changes exactly at the boundary tick. */
+  stroke-linecap: butt;
+}
+
+.tick {
+  stroke: var(--color-text);
+  stroke-linecap: round;
+}
+
+.sectorLabel {
+  fill: var(--sector-colour);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+  /* Dark halo keeps the label legible over the casing or another stretch of track. */
+  stroke: var(--color-surface);
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+  /* SVG user units: the viewBox is 1000 wide, so this is ~2.4% of the map width. */
+  font-size: 24px;
+  stroke-width: 6px;
+}
+
+/* Phones: the map renders ~300 px wide, so labels take a larger share to stay ~12 px. */
+@media (max-width: 40rem) {
+  .sectorLabel {
+    font-size: 40px;
+    stroke-width: 9px;
+  }
+}

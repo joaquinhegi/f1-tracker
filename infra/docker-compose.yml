@@ -1,0 +1,75 @@
+name: f1-tracker
+
+x-openf1-env: &openf1-env
+  MONGO_CONNECTION_STRING: ${MONGO_CONNECTION_STRING:-mongodb://mongo:27017}
+  OPENF1_DB_NAME: ${OPENF1_DB_NAME:-openf1-livetiming}
+
+services:
+  mongo:
+    image: mongo:7  # mongo 8 crashes on Linux kernel >= 6.19 (SERVER-121912)
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    # Local debugging only; never reachable from outside the host.
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: openf1/Dockerfile
+      target: openf1
+    image: f1-tracker/openf1:local
+    restart: unless-stopped
+    environment:
+      <<: *openf1-env
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: openf1/Dockerfile
+      target: scheduler
+    image: f1-tracker/scheduler:local
+    restart: unless-stopped
+    init: true  # reaps the ingestor's child processes
+    stop_grace_period: 60s  # lets the scheduler stop the ingestor cleanly
+    environment:
+      <<: *openf1-env
+      F1_TOKEN: ${F1_TOKEN:-}
+      SCHEDULE_CACHE_PATH: /data/schedule-cache.json
+      POLL_SECONDS: ${POLL_SECONDS:-30}
+      SYNC_LOCAL_SCHEDULE: ${SYNC_LOCAL_SCHEDULE:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Historical backfill from the F1 static archive (see README).
+      BACKFILL_ENABLED: ${BACKFILL_ENABLED:-true}
+      BACKFILL_PUBLISH_DELAY_MINUTES: ${BACKFILL_PUBLISH_DELAY_MINUTES:-60}
+      BACKFILL_RETRY_MINUTES: ${BACKFILL_RETRY_MINUTES:-30}
+      BACKFILL_GIVE_UP_MINUTES: ${BACKFILL_GIVE_UP_MINUTES:-2880}
+      BACKFILL_STATE_PATH: /data/backfill-state.json
+      LOCAL_API_URL: http://api:8000
+    volumes:
+      - scheduler-data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
+  scheduler-data:

@@ -1,0 +1,65 @@
+schema: spec-driven
+
+context: |
+  Monorepo: web/ (Next.js 16 App Router, React 19, TypeScript strict, pnpm) + infra/ (Docker Compose: mongo 7, self-hosted OpenF1 API, Python scheduler).
+  Architecture: Screaming + hexagonal — web/src/features/{domain}/{domain,application,ui,infrastructure}; infra/scheduler uses domain.py + ports.py + adapters/.
+  Testing: web -> Vitest + Testing Library (jsdom); infra/scheduler -> pytest via a Python 3.9+ venv with `pytest>=8` installed.
+  Deploy target: Oracle Cloud Always Free ARM VM (infra) + Cloudflare Tunnel + Cloudflare Workers/Pages (web).
+  Not a git repository yet. SDD phases MUST NOT run `git init` or commit. Never create or edit infra/.env.
+
+strict_tdd: true
+
+testing:
+  web:
+    runner: vitest
+    command: "pnpm --dir web test"
+    watch_command: "pnpm --dir web test:watch"
+    typecheck_command: "pnpm --dir web typecheck"
+    lint_command: "pnpm --dir web lint"
+    build_command: "pnpm --dir web build"
+    coverage: unavailable  # no @vitest/coverage-v8 devDependency or coverage script configured
+    layers:
+      unit: true
+      integration: true   # @testing-library/react + jsdom
+      e2e: false
+  infra_scheduler:
+    runner: pytest
+    command: "cd infra/scheduler && <venv-python> -m pytest -q"
+    note: "No committed venv in the repo. Use any Python 3.9+ venv with `pytest>=8` installed (pyproject.toml optional-dependencies.test). Example from this session's scratchpad venv: /private/tmp/claude-501/-Users-joaquinhegi-Dev-f1-tracker/46923a03-ecaf-4b22-a38a-6ea4cfeb41bb/scratchpad/venv/bin/python -m pytest -q (run from infra/scheduler). This path is session-scoped and will not exist in later sessions."
+    coverage: unavailable  # no pytest-cov configured
+    layers:
+      unit: true
+      integration: false
+      e2e: false
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - State which sub-project(s) are touched (web, infra/scheduler, infra/openf1 compose config)
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document hexagonal boundaries touched or introduced (web: domain/application/ui/infrastructure; scheduler: domain/ports/adapters)
+    - Include sequence diagrams for complex flows (e.g. scheduler <-> OpenF1 <-> web)
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Separate web and infra/scheduler task groups when a change spans both sub-projects
+  apply:
+    guidelines:
+      - Follow existing screaming/hexagonal patterns per sub-project
+      - Never create or edit infra/.env
+      - Never run `git init` or commit unless explicitly instructed
+    tdd: true
+    test_command: "pnpm --dir web test"
+  verify:
+    test_command: "pnpm --dir web test"
+    build_command: "pnpm --dir web build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+
+delivery:
+  strategy: single-pr
+  review_budget_lines: 800
