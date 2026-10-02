@@ -49,14 +49,12 @@ cmd_backup() {
   if [ -z "${cid}" ]; then
     log "ERROR backup: ${MONGO_SERVICE} container not found"
     state_set backup last_result unhealthy
-    ntfy_notify "backup failed" "The mongo container was not found; no dump was taken." "high"
     exit 1
   fi
 
   if ! docker exec "${cid}" mongodump --archive --gzip | rclone rcat "${remote}/${object}"; then
     log "ERROR backup: mongodump/rclone pipeline failed"
     state_set backup last_result unhealthy
-    ntfy_notify "backup failed" "mongodump or the upload to Object Storage failed." "high"
     exit 1
   fi
 
