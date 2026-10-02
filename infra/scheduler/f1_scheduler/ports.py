@@ -78,3 +78,18 @@ class BackfillStateStore(Protocol):
 
     def save(self, records: Dict[int, BackfillRecord]) -> None:
         ...
+
+
+class Notifier(Protocol):
+    def notify(self, title: str, message: str) -> None:
+        """Push a notification. Must never raise for a missing/unconfigured channel."""
+        ...
+
+
+class AlertStateStore(Protocol):
+    def load(self) -> Dict[str, str]:
+        """Last persisted alert state per key (empty dict if none)."""
+        ...
+
+    def save(self, state: Dict[str, str]) -> None:
+        ...
