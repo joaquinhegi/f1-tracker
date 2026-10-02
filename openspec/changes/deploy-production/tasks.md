@@ -35,38 +35,40 @@ Literal line uses the default 400 budget (High) for guard compatibility. The pro
 - [x] 1.4 Branch `feat/deploy-production` off `main`.
 
 ## Phase 2: Scheduler — Notifier port + ntfy adapter (TDD)
-- [ ] 2.1 RED `tests/test_ntfy.py`: ntfy POST never leaks the token/topic (fake opener).
-- [ ] 2.2 GREEN `adapters/ntfy.py`: `NtfyNotifier.notify`.
-- [ ] 2.3 RED test: unset `NTFY_TOPIC` → no call, no raise.
-- [ ] 2.4 GREEN `NullNotifier`; wire selection in `__main__.py`.
+- [x] 2.1 RED `tests/test_ntfy.py`: ntfy POST never leaks the token/topic (fake opener).
+- [x] 2.2 GREEN `adapters/ntfy.py`: `NtfyNotifier.notify`.
+- [x] 2.3 RED test: unset `NTFY_TOPIC` → no call, no raise.
+- [x] 2.4 GREEN `NullNotifier`; wire selection in `__main__.py`.
 
 ## Phase 3: Scheduler — alerts domain + state + wiring (TDD)
-- [ ] 3.1 RED `tests/test_alerts.py`: `evaluate()` fires once per new failure state (token/ingestor/backfill).
-- [ ] 3.2 GREEN `alerts.py`: `Alert` dataclass + `evaluate()`.
-- [ ] 3.3 RED test: no repeat while unchanged; recovery alert on healthy return.
-- [ ] 3.4 GREEN extend `evaluate()`: dedup + recovery.
-- [ ] 3.5 RED test: `JsonFileAlertState` load/save round-trip; save only after notify succeeds.
-- [ ] 3.6 GREEN `AlertStateStore` in `ports.py`; `JsonFileAlertState` in `adapters/json_cache.py`.
-- [ ] 3.7 RED test: crash (`expected_key` cleared) invokes the notifier.
-- [ ] 3.8 GREEN wire `evaluate`+`Notifier`+state into `service.py` `tick()`; REFACTOR dedupe, confirm no secret leaks.
+- [x] 3.1 RED `tests/test_alerts.py`: `evaluate()` fires once per new failure state (token/ingestor/backfill).
+- [x] 3.2 GREEN `alerts.py`: `Alert` dataclass + `evaluate()`.
+- [x] 3.3 RED test: no repeat while unchanged; recovery alert on healthy return.
+- [x] 3.4 GREEN extend `evaluate()`: dedup + recovery.
+- [x] 3.5 RED test: `JsonFileAlertState` load/save round-trip; save only after notify succeeds.
+- [x] 3.6 GREEN `AlertStateStore` in `ports.py`; `JsonFileAlertState` in `adapters/json_cache.py`.
+- [x] 3.7 RED test: crash (`expected_key` cleared) invokes the notifier.
+- [x] 3.8 GREEN wire `evaluate`+`Notifier`+state into `service.py` `tick()`; REFACTOR dedupe, confirm no secret leaks.
 
 ## Phase 4: Scheduler — periodic token health check (TDD)
-- [ ] 4.1 RED `tests/test_service.py`: periodic check every `TOKEN_CHECK_MINUTES` (360) re-assesses token, refreshes status file.
-- [ ] 4.2 GREEN add periodic check to `service.py`; wire env in `__main__.py`.
-- [ ] 4.3 Verify: reuses the 3.3–3.4 dedup/recovery path (no duplicate alert).
+- [x] 4.1 RED `tests/test_service.py`: periodic check every `TOKEN_CHECK_MINUTES` (360) re-assesses token, refreshes status file.
+- [x] 4.2 GREEN add periodic check to `service.py`; wire env in `__main__.py`.
+- [x] 4.3 Verify: reuses the 3.3–3.4 dedup/recovery path (no duplicate alert).
 
 ## Phase 5: Web — health route (TDD)
-- [ ] 5.1 RED `route.test.ts`: `GET /api/health` → 200 `{status:"ok"}`, no upstream call.
-- [ ] 5.2 GREEN create `web/src/app/api/health/route.ts`, `force-dynamic`.
+- [x] 5.1 RED `route.test.ts`: `GET /api/health` → 200 `{status:"ok"}`, no upstream call.
+- [x] 5.2 GREEN create `web/src/app/api/health/route.ts`, `force-dynamic`.
 
 ## Phase 6: Web image + Compose + CI (apply)
-- [ ] 6.1 `web/Dockerfile` (deps→build→runner, `node:22-bookworm-slim`, corepack pnpm 11.9.0 `--frozen-lockfile`, standalone copy, `USER node`, healthcheck); `.dockerignore`; `next.config.ts` standalone.
-- [ ] 6.2 Compose: add `web` service (`127.0.0.1:3000`, `OPENF1_SELF_HOSTED_URL`, `F1_CACHE_DIR` volume, `depends_on: api`).
-- [ ] 6.3 `x-logging` anchor (json-file 10m×3) on every service; confirm restart policy.
-- [ ] 6.4 Add `image: ${IMAGE_PREFIX:-f1-tracker}-<svc>:${IMAGE_TAG:-local}` beside `build:` for api/scheduler/web.
-- [ ] 6.5 `infra/.env.example`: `F1_TOKEN`, `NTFY_TOPIC`, `TOKEN_CHECK_MINUTES`, `IMAGE_PREFIX`, `IMAGE_TAG`.
-- [ ] 6.6 `ci.yml`: web/scheduler/shellcheck jobs gate arm64 matrix build of web/api/scheduler on `ubuntu-24.04-arm`; push sha+latest on main only.
-- [ ] 6.7 Verify: `docker compose config` + `pnpm --dir web build` pass.
+- [x] 6.1 `web/Dockerfile` (deps→build→runner, `node:22-bookworm-slim`, corepack pnpm 11.9.0 `--frozen-lockfile`, standalone copy, `USER node`, healthcheck); `.dockerignore`; `next.config.ts` standalone.
+- [x] 6.2 Compose: add `web` service (`127.0.0.1:3000`, `OPENF1_SELF_HOSTED_URL`, `F1_CACHE_DIR` volume, `depends_on: api`).
+- [x] 6.3 `x-logging` anchor (json-file 10m×3) on every service; confirm restart policy.
+- [x] 6.4 Add `image: ${IMAGE_PREFIX:-f1-tracker}-<svc>:${IMAGE_TAG:-local}` beside `build:` for api/scheduler/web.
+- [ ] 6.5 `infra/.env.example`: `F1_TOKEN`, `NTFY_TOPIC`, `TOKEN_CHECK_MINUTES`, `IMAGE_PREFIX`, `IMAGE_TAG`. **BLOCKED**: sandbox hard-denies Read/Write/Bash access to any `.env*`-pattern path in this workspace, even to create a placeholder-only file. Needs an operator/orchestrator with that permission, or an explicit grant for this exact path.
+- [x] 6.6 `ci.yml`: web/scheduler/shellcheck jobs gate arm64 matrix build of web/api/scheduler on `ubuntu-24.04-arm`; push sha+latest on main only.
+- [x] 6.7 Verify: `docker compose config` + `pnpm --dir web build` pass (also proved via a local arm64 `docker build` + run against the live api).
+
+**STOPPED HERE (2026-10-02): PR diff vs `main` reached 728/800 changed lines (baseline import excluded) after Phase 6. Phase 7 (ops scripts) and Phase 8 (docs + config) remain and cannot fit the remaining ~72-line margin — realistic estimate is 350-450+ more lines. Needs a chain-strategy/size-exception decision before continuing apply.**
 
 ## Phase 7: Ops scripts (apply, shellcheck-gated)
 - [ ] 7.1 `lib.sh`: shared curl/ntfy/state helpers.
