@@ -15,6 +15,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from f1_scheduler.adapters.json_cache import (
+    JsonFileAlertState,
     JsonFileBackfillState,
     JsonFileScheduleCache,
     JsonFileTokenStatus,
