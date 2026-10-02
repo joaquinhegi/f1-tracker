@@ -13,15 +13,15 @@ Commits land on the branch `feat/deploy-production`, so this change ships in the
 
 ## Phase 1: Ops scripts (apply, shellcheck-gated)
 
-- [ ] 1.1 `infra/ops/lib.sh`: shared curl, ntfy and state helpers.
-- [ ] 1.2 `infra/ops/watchdog.sh`: runs every 2 min. It compares web/api/mongo/scheduler health against the previous state and alerts once per state change, with recovery notices.
-- [ ] 1.3 `infra/ops/backup.sh`, with a `restore` subcommand:
+- [x] 1.1 `infra/ops/lib.sh`: shared curl, ntfy and state helpers.
+- [x] 1.2 `infra/ops/watchdog.sh`: runs every 2 min. It compares web/api/mongo/scheduler health against the previous state and alerts once per state change, with recovery notices.
+- [x] 1.3 `infra/ops/backup.sh`, with a `restore` subcommand:
   - stream `mongodump --archive --gzip` through `rclone rcat` to OCI using instance-principal auth;
   - log the archive size;
   - prune backups older than 7 days, only after a successful upload.
-- [ ] 1.4 `infra/ops/bootstrap.sh`: idempotent install of docker, the compose plugin, tailscale (`up --ssh`, `funnel --bg 3000`), rclone, unattended-upgrades and the systemd timers.
-- [ ] 1.5 `infra/ops/cloud-init.yaml`, plus minimal `infra/ops/systemd/*` units: the watchdog and backup timers.
-- [ ] 1.6 `shellcheck infra/ops/*.sh` is clean, and the existing CI shellcheck job passes.
+- [x] 1.4 `infra/ops/bootstrap.sh`: idempotent install of docker, the compose plugin, tailscale (`up --ssh`, `funnel --bg 3000`), rclone, unattended-upgrades and the systemd timers.
+- [x] 1.5 `infra/ops/cloud-init.yaml`, plus minimal `infra/ops/systemd/*` units: the watchdog and backup timers.
+- [x] 1.6 `shellcheck infra/ops/*.sh` is clean, and the existing CI shellcheck job passes.
 
 ## Phase 2: Docs + config (apply)
 
