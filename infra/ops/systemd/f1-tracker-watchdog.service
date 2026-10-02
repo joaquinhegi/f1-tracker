@@ -1,0 +1,9 @@
+[Unit]
+Description=f1-tracker host watchdog
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/f1-tracker/infra/.env
+ExecStart=/opt/f1-tracker/infra/ops/watchdog.sh

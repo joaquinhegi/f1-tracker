@@ -1,0 +1,14 @@
+#cloud-config
+# infra/ops/cloud-init.yaml
+#
+# Minimal first-boot config: clone the public repo, then hand off to
+# bootstrap.sh for everything else (idempotent, also used to rebuild after a
+# reclaim). Paste this as the instance's user-data, replacing the two
+# REPLACE_* placeholders before creating the VM. See RUNBOOK.md.
+package_update: true
+packages:
+  - git
+
+runcmd:
+  - [git, clone, --depth, "1", "REPLACE_WITH_REPO_URL", /opt/f1-tracker]
+  - [bash, -c, "TAILSCALE_AUTHKEY=REPLACE_WITH_SINGLE_USE_1H_KEY /opt/f1-tracker/infra/ops/bootstrap.sh"]

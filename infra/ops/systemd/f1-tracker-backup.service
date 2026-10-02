@@ -1,0 +1,9 @@
+[Unit]
+Description=f1-tracker nightly backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/f1-tracker/infra/.env
+ExecStart=/opt/f1-tracker/infra/ops/backup.sh backup
