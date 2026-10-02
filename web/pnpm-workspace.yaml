@@ -1,3 +1,5 @@
+# pnpm 11 moved build-script approval out of package.json (see pnpm.io/settings).
+# unrs-resolver is eslint-config-next's native resolver; approving its postinstall
+# is required for a clean `pnpm install --frozen-lockfile` (local, CI and Docker).
 allowBuilds:
-  sharp: false
-  unrs-resolver: false
+  unrs-resolver: true
