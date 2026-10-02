@@ -25,10 +25,10 @@ Commits land on the branch `feat/deploy-production`, so this change ships in the
 
 ## Phase 2: Docs + config (apply)
 
-- [ ] 2.1 `RUNBOOK.md`: terse checklists for bootstrap, deploy/update, token refresh, backup/restore, rebuild after reclaim, measuring utilisation, and the one-time switch of GHCR packages to public.
-- [ ] 2.2 Trim `infra/README.md` and point it at `RUNBOOK.md`.
-- [ ] 2.3 `openspec/config.yaml`: remove the git ban note and replace Cloudflare with Tailscale Funnel.
-- [ ] 2.4 Re-run `gitleaks git` and `gitleaks protect --staged`, not a bare `detect --no-git`, which flags `.next/` cache noise. Confirm `infra/.env` stays untracked.
+- [x] 2.1 `RUNBOOK.md`: terse checklists for bootstrap, deploy/update, token refresh, backup/restore, rebuild after reclaim, measuring utilisation, and the one-time switch of GHCR packages to public.
+- [x] 2.2 Trim `infra/README.md` and point it at `RUNBOOK.md`.
+- [x] 2.3 `openspec/config.yaml`: remove the git ban note and replace Cloudflare with Tailscale Funnel.
+- [x] 2.4 Re-run `gitleaks git` and `gitleaks protect --staged`, not a bare `detect --no-git`, which flags `.next/` cache noise. Confirm `infra/.env` stays untracked.
 
 ## Phase 3: Operator-only steps (NOT apply-executable)
 
