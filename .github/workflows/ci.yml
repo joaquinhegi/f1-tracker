@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   web:
@@ -54,6 +53,9 @@ jobs:
   build:
     needs: [web, scheduler, shellcheck]
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         include:
@@ -88,3 +90,5 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}-${{ matrix.name }}:sha-${{ steps.vars.outputs.sha_short }}
             ghcr.io/${{ github.repository }}-${{ matrix.name }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
