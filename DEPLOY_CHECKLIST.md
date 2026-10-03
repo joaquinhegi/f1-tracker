@@ -65,8 +65,8 @@ OCI_REGION="eu-madrid-1"
 - [ ] Identity -> Policies -> Create (in the bucket's compartment):
 
 ```text
-Allow dynamic-group f1-tracker-vm to read buckets in compartment <COMPARTMENT> where target.bucket.name = '<BUCKET>'
-Allow dynamic-group f1-tracker-vm to manage objects in compartment <COMPARTMENT> where target.bucket.name = '<BUCKET>'
+Allow dynamic-group 'Default'/'f1-tracker-vm' to read buckets in compartment <COMPARTMENT> where target.bucket.name = '<BUCKET>'
+Allow dynamic-group 'Default'/'f1-tracker-vm' to manage objects in compartment <COMPARTMENT> where target.bucket.name = '<BUCKET>'
 ```
 
   (With identity domains the console may expect `'Default'/'f1-tracker-vm'`.)
