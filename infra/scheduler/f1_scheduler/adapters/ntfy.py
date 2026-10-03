@@ -37,6 +37,9 @@ class NtfyNotifier:
         self._timeout = timeout_seconds
 
     def notify(self, title: str, message: str) -> None:
+        """Posts to ntfy.sh. Logs and re-raises on delivery failure, so the
+        caller (SchedulerService) never treats a failed send as delivered and
+        retries on the next tick instead of persisting alert state."""
         request = urllib.request.Request(
             f"{self._server}/{self._topic}",
             data=message.encode("utf-8"),
@@ -50,6 +53,7 @@ class NtfyNotifier:
                 close(None, None, None)
         except (urllib.error.URLError, OSError) as exc:
             log.warning("ntfy notification failed: %s", exc)
+            raise
 
 
 class NullNotifier:
