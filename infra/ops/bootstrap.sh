@@ -14,6 +14,19 @@ log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
 }
 
+source_env_file() {
+  local env_file="${REPO_DIR}/infra/.env"
+  if [ -f "${env_file}" ]; then
+    log "sourcing ${env_file}"
+    set -a
+    # shellcheck source=/dev/null
+    source "${env_file}"
+    set +a
+  else
+    log "no ${env_file} yet, skipping (cloud-init runs before it exists)"
+  fi
+}
+
 install_docker() {
   if command -v docker >/dev/null 2>&1; then
     log "docker already installed, skipping"
@@ -51,11 +64,15 @@ configure_rclone_remote() {
   if rclone listremotes | grep -q '^oracleobjectstorage:$'; then
     return
   fi
+  if [ -z "${OCI_NAMESPACE:-}" ] || [ -z "${OCI_COMPARTMENT:-}" ] || [ -z "${OCI_REGION:-}" ]; then
+    log "WARN configure_rclone_remote: OCI_NAMESPACE/OCI_COMPARTMENT/OCI_REGION not set, skipping rclone remote setup (re-run bootstrap.sh after infra/.env is filled in)"
+    return
+  fi
   rclone config create oracleobjectstorage oracleobjectstorage \
     provider instance_principal_auth \
-    namespace "${OCI_NAMESPACE:?OCI_NAMESPACE must be set}" \
-    compartment "${OCI_COMPARTMENT:?OCI_COMPARTMENT must be set}" \
-    region "${OCI_REGION:?OCI_REGION must be set}"
+    namespace "${OCI_NAMESPACE}" \
+    compartment "${OCI_COMPARTMENT}" \
+    region "${OCI_REGION}"
 }
 
 install_unattended_upgrades() {
@@ -78,6 +95,7 @@ install_systemd_units() {
 }
 
 main() {
+  source_env_file
   install_docker
   install_tailscale
   install_rclone
@@ -87,4 +105,6 @@ main() {
   log "bootstrap complete: cd ${REPO_DIR}/infra && docker compose up -d --no-build"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

@@ -16,11 +16,17 @@ on the tailnet (`tailscale up --ssh`), from `/opt/f1-tracker`.
    unattended-upgrades and the watchdog/backup systemd timers.
 4. Confirm: `tailscale status` shows the node; `systemctl status
    f1-tracker-watchdog.timer f1-tracker-backup.timer` are both active.
+   `configure_rclone_remote` is skipped with a `WARN` at this point because
+   `infra/.env` does not exist yet -- expected, not an error.
 5. Create `infra/.env` from `infra/.env.example` with real values. Never
    commit it. Required: `RCLONE_BUCKET`, `OCI_NAMESPACE`, `OCI_COMPARTMENT`,
    `OCI_REGION` (nightly backups), `IMAGE_PREFIX`/`IMAGE_TAG` (image pulls).
-6. First deploy: see below. The database starts empty; no backfill runs
-   automatically.
+6. Re-run `infra/ops/bootstrap.sh` (idempotent). It now sources
+   `infra/.env` and configures the rclone remote that step 4's warning
+   skipped.
+7. First deploy: see below. The database starts empty; no backfill runs
+   automatically (`BACKFILL_ENABLED=false` until you choose to turn it on,
+   see Deploy / update).
 
 ## Deploy / update
 

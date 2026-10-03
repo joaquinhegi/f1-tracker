@@ -53,4 +53,6 @@ main() {
   log "watchdog check complete: web=${web} api=${api} mongo=${mongo} scheduler=${scheduler} backup=${backup}"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
