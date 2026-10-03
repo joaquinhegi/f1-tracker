@@ -44,7 +44,12 @@ cmd_backup() {
   remote=$(remote_path)
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
   object="mongo-${ts}.archive.gz"
-  cid=$(mongo_container)
+
+  if ! cid=$(mongo_container); then
+    log "ERROR backup: ${MONGO_SERVICE} container lookup failed (docker compose ps error)"
+    state_set backup last_result unhealthy
+    exit 1
+  fi
 
   if [ -z "${cid}" ]; then
     log "ERROR backup: ${MONGO_SERVICE} container not found"
@@ -58,7 +63,11 @@ cmd_backup() {
     exit 1
   fi
 
-  size=$(rclone size --json "${remote}/${object}" 2>/dev/null | grep -o '"bytes":[0-9]*' | head -1 | grep -o '[0-9]*')
+  if ! size=$(rclone size --json "${remote}/${object}" 2>/dev/null | grep -o '"bytes":[0-9]*' | head -1 | grep -o '[0-9]*'); then
+    log "ERROR backup: rclone size failed after upload for ${object}"
+    state_set backup last_result unhealthy
+    exit 1
+  fi
   log "backup uploaded: ${object} (${size:-unknown} bytes)"
 
   prune_old "${remote}"
