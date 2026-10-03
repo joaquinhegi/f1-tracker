@@ -68,7 +68,10 @@ services:
       POLL_SECONDS: ${POLL_SECONDS:-30}
       SYNC_LOCAL_SCHEDULE: ${SYNC_LOCAL_SCHEDULE:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # Historical backfill from the F1 static archive (see README).
+      # Historical backfill from the F1 static archive (see README). Default
+      # true suits local dev (there is usually recent data worth
+      # backfilling). For a first production deploy, set
+      # BACKFILL_ENABLED=false in infra/.env -- see RUNBOOK.md.
       BACKFILL_ENABLED: ${BACKFILL_ENABLED:-true}
       BACKFILL_PUBLISH_DELAY_MINUTES: ${BACKFILL_PUBLISH_DELAY_MINUTES:-60}
       BACKFILL_RETRY_MINUTES: ${BACKFILL_RETRY_MINUTES:-30}

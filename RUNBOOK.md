@@ -21,12 +21,15 @@ on the tailnet (`tailscale up --ssh`), from `/opt/f1-tracker`.
 5. Create `infra/.env` from `infra/.env.example` with real values. Never
    commit it. Required: `RCLONE_BUCKET`, `OCI_NAMESPACE`, `OCI_COMPARTMENT`,
    `OCI_REGION` (nightly backups), `IMAGE_PREFIX`/`IMAGE_TAG` (image pulls).
+   For the first deploy only, also set `BACKFILL_ENABLED=false` (the
+   compose default is `true`, which suits local dev where there is
+   already recent data worth backfilling).
 6. Re-run `infra/ops/bootstrap.sh` (idempotent). It now sources
    `infra/.env` and configures the rclone remote that step 4's warning
    skipped.
-7. First deploy: see below. The database starts empty; no backfill runs
-   automatically (`BACKFILL_ENABLED=false` until you choose to turn it on,
-   see Deploy / update).
+7. First deploy: see below. The database starts empty, so `BACKFILL_ENABLED=false`
+   prevents the scheduler from auto-ingesting the historical archive on
+   first boot. Remove the override (or set it to `true`) once comfortable.
 
 ## Deploy / update
 
