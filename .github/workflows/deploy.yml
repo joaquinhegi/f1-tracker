@@ -1,0 +1,189 @@
+name: Deploy
+
+# Deploys the prebuilt GHCR images to the Oracle VM over Tailscale SSH.
+# Auto: after a successful CI run on a push to main. Manual: workflow_dispatch,
+# e.g. to roll back (older image_tag) or to push a refreshed F1_TOKEN.
+# Operator setup: DEPLOY_CHECKLIST.md. Background: RUNBOOK.md.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (sha-<short>). Empty = current main."
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    env:
+      IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || 'ghcr.io/joaquinhegi/f1-tracker' }}
+      VM_REPO_DIR: ${{ vars.VM_REPO_DIR || '/opt/f1-tracker' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve commit and image tag
+        id: target
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_run" ]; then
+            sha="$RUN_SHA"
+            tag="sha-${sha:0:7}"
+          elif [ -n "$INPUT_TAG" ]; then
+            if ! [[ "$INPUT_TAG" =~ ^sha-[0-9a-f]{7,40}$ ]]; then
+              echo "::error::image_tag must look like sha-<short hex>"; exit 1
+            fi
+            tag="$INPUT_TAG"
+            sha=$(git rev-parse --verify "${INPUT_TAG#sha-}^{commit}")
+          else
+            sha=$(git rev-parse origin/main)
+            tag="sha-${sha:0:7}"
+          fi
+          git merge-base --is-ancestor "$sha" origin/main \
+            || { echo "::error::$sha is not on main"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Deploying $sha as $tag"
+
+      - name: Check images exist in GHCR
+        env:
+          TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          set -euo pipefail
+          for svc in web api scheduler; do
+            docker buildx imagetools inspect "${IMAGE_PREFIX}-${svc}:${TAG}" >/dev/null \
+              || { echo "::error::missing image ${IMAGE_PREFIX}-${svc}:${TAG}"; exit 1; }
+          done
+
+      - name: Render infra/.env
+        env:
+          F1_TOKEN: ${{ secrets.F1_TOKEN }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RCLONE_BUCKET: ${{ secrets.RCLONE_BUCKET }}
+          OCI_NAMESPACE: ${{ secrets.OCI_NAMESPACE }}
+          OCI_COMPARTMENT: ${{ secrets.OCI_COMPARTMENT }}
+          OCI_REGION: ${{ secrets.OCI_REGION }}
+          IMAGE_TAG: ${{ steps.target.outputs.tag }}
+          TOKEN_CHECK_MINUTES: ${{ vars.TOKEN_CHECK_MINUTES || '360' }}
+          BACKFILL_ENABLED: ${{ vars.BACKFILL_ENABLED || 'false' }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for name in RCLONE_BUCKET OCI_NAMESPACE OCI_COMPARTMENT OCI_REGION; do
+            [ -n "${!name}" ] || { echo "::error::secret $name is empty"; exit 1; }
+          done
+          for name in F1_TOKEN NTFY_TOPIC; do
+            [ -n "${!name}" ] || echo "::warning::secret $name is empty"
+          done
+          # Sourced by bash (bootstrap.sh), systemd EnvironmentFile and
+          # docker compose: double-quote every value, escape \ " $ `.
+          emit() {
+            local v="${!1}"
+            case "$v" in *$'\n'* | *$'\r'*) echo "::error::$1 contains a newline"; exit 1 ;; esac
+            v=${v//\\/\\\\}; v=${v//\"/\\\"}; v=${v//\$/\\\$}; v=${v//\`/\\\`}
+            printf '%s="%s"\n' "$1" "$v"
+          }
+          {
+            echo "# Rendered by .github/workflows/deploy.yml -- manual edits are overwritten."
+            for name in IMAGE_PREFIX IMAGE_TAG F1_TOKEN NTFY_TOPIC TOKEN_CHECK_MINUTES \
+                BACKFILL_ENABLED RCLONE_BUCKET OCI_NAMESPACE OCI_COMPARTMENT OCI_REGION; do
+              emit "$name"
+            done
+          } > "$RUNNER_TEMP/deploy.env"
+
+      - name: Connect to tailnet
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          ping: ${{ secrets.VM_HOST }}
+
+      - name: Deploy over Tailscale SSH
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ip=$(tailscale ip -4 "$VM_HOST")
+          ssh_vm() {
+            ssh -o BatchMode=yes -o ConnectTimeout=20 \
+              -o StrictHostKeyChecking=accept-new \
+              -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" \
+              "${VM_USER}@${ip}" "$@"
+          }
+          # Upload the env file via stdin: never on the command line or in logs.
+          ssh_vm "sudo -n sh -c 'umask 077 && tee \"$VM_REPO_DIR/infra/.env.deploy-tmp\" >/dev/null'" \
+            < "$RUNNER_TEMP/deploy.env"
+          ssh_vm sudo -n bash -s -- "$VM_REPO_DIR" "$SHA" <<'REMOTE'
+          set -euo pipefail
+          repo="$1" sha="$2"
+          cd "$repo"
+          git fetch --quiet --depth 1 origin "$sha"
+          git checkout --quiet --detach "$sha"
+          chmod 600 infra/.env.deploy-tmp
+          mv -f infra/.env.deploy-tmp infra/.env
+          # First deploy: configure the rclone remote that bootstrap skipped
+          # while infra/.env did not exist (RUNBOOK Bootstrap step 6).
+          if command -v rclone >/dev/null && ! rclone listremotes | grep -q '^oracleobjectstorage:$'; then
+            bash -c 'source infra/ops/bootstrap.sh && source_env_file && configure_rclone_remote'
+          fi
+          cd infra
+          docker compose pull --quiet
+          docker compose up -d --no-build --remove-orphans
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3000/api/health || true)
+            if [ "$code" = "200" ]; then echo "healthy at $sha"; exit 0; fi
+            sleep 10
+          done
+          echo "web /api/health never returned 200" >&2
+          docker compose ps
+          for svc in $(docker compose config --services); do
+            state=$(docker compose ps --format '{{.State}} {{.Health}}' "$svc" 2>/dev/null || true)
+            case "$state" in "running healthy" | "running ") ;; *)
+              echo "--- $svc ($state) ---"; docker compose logs --no-color --tail 50 "$svc" ;; esac
+          done
+          exit 1
+          REMOTE
+
+      - name: Notify ntfy
+        if: always()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STATUS: ${{ job.status }}
+          TAG: ${{ steps.target.outputs.tag }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -n "$NTFY_TOPIC" ] || exit 0
+          if [ "$STATUS" = "success" ]; then prio=default; else prio=high; fi
+          curl -fsS --max-time 10 -H "Title: f1-tracker deploy ${STATUS}" \
+            -H "Priority: ${prio}" -H "Click: ${RUN_URL}" \
+            -d "Deploy of ${TAG:-unknown}: ${STATUS}" "https://ntfy.sh/${NTFY_TOPIC}" >/dev/null \
+            || echo "::warning::ntfy notification failed"
