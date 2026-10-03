@@ -176,6 +176,131 @@ def test_missing_token_is_reported(caplog):
     assert "F1_TOKEN is not set" in caplog.text
 
 
+# --- Alerts ----------------------------------------------------------------
+
+
+class FakeNotifier:
+    def __init__(self, fail: bool = False):
+        self.sent: List[tuple] = []
+        self.fail = fail
+
+    def notify(self, title, message):
+        if self.fail:
+            raise OSError("ntfy down")
+        self.sent.append((title, message))
+
+
+class FakeAlertState:
+    def __init__(self, state=None):
+        self.state = dict(state or {})
+        self.saves = 0
+
+    def load(self):
+        return dict(self.state)
+
+    def save(self, state):
+        self.saves += 1
+        self.state = dict(state)
+
+
+class CrashingRunner(FakeRunner):
+    """Starts normally but silently dies (poll-style `running_session_key()`
+    returns None) without an explicit `stop()` ever being called. Stays
+    "down" even if the scheduler retries `start()`, to model a crash loop."""
+
+    def __init__(self):
+        super().__init__()
+        self._down = False
+
+    def crash(self):
+        self._down = True
+        self.key = None  # lets the scheduler's retry Start() through, like a real dead process
+
+    def running_session_key(self):
+        return None if self._down else self.key
+
+    def start(self, session):
+        self.starts.append(session.session_key)
+        if self._down:
+            return  # every restart attempt dies immediately (crash loop)
+        self.key = session.session_key
+
+
+def test_ingestor_crash_notifies_once_and_persists_alert_state():
+    clock = Clock(T0)
+    runner = CrashingRunner()
+    notifier, alert_state = FakeNotifier(), FakeAlertState()
+    service = SchedulerService(
+        source=FakeSource([RACE]), cache=FakeCache(), runner=runner, clock=clock,
+        notifier=notifier, alert_state=alert_state,
+    )
+    service.tick()  # starts the ingestor
+    assert runner.starts == [1]
+
+    runner.crash()
+    service.tick()
+    assert len(notifier.sent) == 1
+    assert notifier.sent[0][0] == "Ingestor crashed"
+    assert alert_state.state == {"ingestor": "crashed"}
+    assert alert_state.saves == 1
+
+    service.tick()  # still crashed/restarted: no repeat alert
+    assert len(notifier.sent) == 1
+
+
+def test_alert_state_is_not_saved_when_notify_fails():
+    clock = Clock(T0)
+    runner = CrashingRunner()
+    notifier, alert_state = FakeNotifier(fail=True), FakeAlertState()
+    service = SchedulerService(
+        source=FakeSource([RACE]), cache=FakeCache(), runner=runner, clock=clock,
+        notifier=notifier, alert_state=alert_state,
+    )
+    service.tick()
+    runner.crash()
+    service.tick()
+    assert alert_state.state == {}
+    assert alert_state.saves == 0
+
+
+def test_periodic_token_check_reassesses_after_the_configured_interval():
+    token = _jwt(T0 + timedelta(hours=2))
+    clock = Clock(T0 - timedelta(days=2))
+    store = FakeTokenStatus()
+    service = SchedulerService(
+        source=FakeSource([RACE]), cache=FakeCache(), runner=FakeRunner(), clock=clock,
+        token=token, token_status=store, token_check_interval=timedelta(minutes=360),
+    )
+    service.tick()
+    assert len(store.saved) == 1
+
+    clock.now += timedelta(minutes=359)
+    service.tick()
+    assert len(store.saved) == 1  # too soon
+
+    clock.now += timedelta(minutes=2)
+    service.tick()
+    assert len(store.saved) == 2
+
+
+def test_periodic_token_recheck_does_not_duplicate_the_expiry_alert():
+    token = _jwt(T0 + timedelta(hours=1))  # expires inside the open race window
+    clock = Clock(T0 - timedelta(minutes=61))
+    notifier, alert_state = FakeNotifier(), FakeAlertState()
+    service = SchedulerService(
+        source=FakeSource([RACE]), cache=FakeCache(), runner=FakeRunner(), clock=clock,
+        token=token, notifier=notifier, alert_state=alert_state,
+        token_check_interval=timedelta(minutes=360),
+    )
+    service.tick()  # startup periodic check + Start-time check: same "expiring" state
+    assert len(notifier.sent) == 1
+    assert notifier.sent[0][0] == "F1TV token expiring"
+
+    clock.now += timedelta(minutes=1)
+    service.tick()  # too soon for periodic recheck, state unchanged -> no repeat
+    assert len(notifier.sent) == 1
+
+
 def test_token_status_store_failure_does_not_break_tick():
     class Broken:
         def save(self, status):

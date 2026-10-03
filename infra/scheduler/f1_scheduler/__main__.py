@@ -15,10 +15,12 @@ from datetime import timedelta
 from pathlib import Path
 
 from f1_scheduler.adapters.json_cache import (
+    JsonFileAlertState,
     JsonFileBackfillState,
     JsonFileScheduleCache,
     JsonFileTokenStatus,
 )
+from f1_scheduler.adapters.ntfy import build_notifier
 from f1_scheduler.adapters.openf1_http import OpenF1HttpSessionSource
 from f1_scheduler.adapters.subprocess_runner import (
     OpenF1ScheduleSync,
@@ -103,6 +105,9 @@ def main() -> None:
         historical=SubprocessHistoricalIngestor() if _flag("BACKFILL_ENABLED", True) else None,
         backfill_state=_backfill_state(),
         backfill_policy=_backfill_policy(),
+        notifier=build_notifier(os.getenv("NTFY_TOPIC")),
+        alert_state=JsonFileAlertState(Path(os.getenv("ALERT_STATE_PATH", "/data/alert-state.json"))),
+        token_check_interval=_minutes("TOKEN_CHECK_MINUTES", 360),
     )
 
     stop_event = threading.Event()

@@ -103,6 +103,26 @@ class JsonFileBackfillState:
         ])
 
 
+class JsonFileAlertState:
+    """AlertStateStore adapter: `/data/alert-state.json` on the scheduler volume."""
+
+    def __init__(self, path: Path):
+        self._path = path
+
+    def load(self) -> Dict[str, str]:
+        if not self._path.exists():
+            return {}
+        try:
+            raw = json.loads(self._path.read_text(encoding="utf-8"))
+            return {str(k): str(v) for k, v in raw.items()}
+        except Exception as exc:  # a corrupt state file only costs one re-alert
+            log.warning("Ignoring unreadable alert state %s: %s", self._path, exc)
+            return {}
+
+    def save(self, state: Dict[str, str]) -> None:
+        _atomic_write_json(self._path, state)
+
+
 def _atomic_write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")

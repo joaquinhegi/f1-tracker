@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
+from f1_scheduler.alerts import backfill_alert_state, evaluate, token_alert_state
 from f1_scheduler.backfill import (
     DEFAULT_BACKFILL_POLICY,
     OUTCOME_FAILED,
@@ -28,9 +29,11 @@ from f1_scheduler.domain import (
     recording_window,
 )
 from f1_scheduler.ports import (
+    AlertStateStore,
     BackfillStateStore,
     HistoricalIngestor,
     IngestorRunner,
+    Notifier,
     ScheduleCache,
     ScheduleSync,
     SessionSource,
@@ -61,6 +64,9 @@ class SchedulerService:
         historical: Optional[HistoricalIngestor] = None,
         backfill_state: Optional[BackfillStateStore] = None,
         backfill_policy: BackfillPolicy = DEFAULT_BACKFILL_POLICY,
+        notifier: Optional[Notifier] = None,
+        alert_state: Optional[AlertStateStore] = None,
+        token_check_interval: timedelta = timedelta(minutes=360),
     ):
         self._source = source
         self._cache = cache
@@ -72,14 +78,20 @@ class SchedulerService:
         self._clock = clock
         self._token = token
         self._token_status = token_status
-        self._token_checked = False
         self._historical = historical
         self._backfill_state = backfill_state
         self._backfill_policy = backfill_policy
+        self._notifier = notifier
+        self._alert_state_store = alert_state
+        self._alert_state: Dict[str, str] = alert_state.load() if alert_state is not None else {}
+        self._token_check_interval = token_check_interval
 
         self._sessions: List[Session] = cache.load()
         self._last_refresh: Optional[datetime] = None
         self._last_sync: Optional[datetime] = None
+        self._last_token_check: Optional[datetime] = None
+        self._last_token_health: Optional[TokenHealth] = None
+        self._expected_session_key: Optional[int] = None
         self._last_log_line: Optional[str] = None
         if self._sessions:
             log.info("Loaded %d sessions from cache", len(self._sessions))
@@ -142,12 +154,16 @@ class SchedulerService:
                 self._token_status.save(health.to_dict())
             except Exception as exc:
                 log.warning("Could not write token status: %s", exc)
+        self._last_token_health = health
         return health
 
-    def _check_token_at_startup(self, now: datetime) -> None:
-        if self._token_checked:
+    def _periodic_token_check(self, now: datetime) -> None:
+        """Re-assesses F1_TOKEN immediately on the first tick, then every
+        `token_check_interval` (so expiry is caught even with no upcoming
+        session, not only right before an ingestor starts)."""
+        if self._last_token_check and now - self._last_token_check < self._token_check_interval:
             return
-        self._token_checked = True
+        self._last_token_check = now
         window = current_or_next_window(self._sessions, now, self._policy)
         self.check_token(now, window[2] if window else None)
 
@@ -161,11 +177,12 @@ class SchedulerService:
     def tick(self) -> None:
         now = self._clock()
         self._refresh_schedule(now)
-        self._check_token_at_startup(now)
+        self._periodic_token_check(now)
 
-        decision = decide(
-            self._sessions, now, self._runner.running_session_key(), self._policy
-        )
+        running_key = self._runner.running_session_key()
+        ingestor_crashed = self._expected_session_key is not None and running_key is None
+
+        decision = decide(self._sessions, now, running_key, self._policy)
 
         if isinstance(decision, Start):
             start, stop = recording_window(decision.session, self._policy)
@@ -177,10 +194,12 @@ class SchedulerService:
             )
             self.check_token(now, stop)
             self._runner.start(decision.session)
+            self._expected_session_key = decision.session.session_key
             self._last_log_line = None
         elif isinstance(decision, Stop):
             log.info("Stopping ingestor for session %s: %s", decision.session_key, decision.reason)
             self._runner.stop()
+            self._expected_session_key = None
             self._last_log_line = None
         elif isinstance(decision, Keep):
             self._log_once(f"Recording session {decision.session_key}")
@@ -193,10 +212,47 @@ class SchedulerService:
                 )
             else:
                 self._log_once("Idle. No upcoming sessions in the known schedule")
+            self._expected_session_key = None
 
         # Run after the decision so a slow scrape never delays starting a recording.
         self._sync_local_schedule(now)
         self._tick_backfill(now)
+        self._check_alerts(ingestor_crashed)
+
+    # --- alerts --------------------------------------------------------------
+
+    def _check_alerts(self, ingestor_crashed: bool) -> None:
+        if self._notifier is None:
+            return
+        observed: Dict[str, Optional[str]] = {}
+        if self._last_token_health is not None:
+            observed["token"] = token_alert_state(self._last_token_health.state)
+        observed["ingestor"] = "crashed" if ingestor_crashed else None
+        if self._backfill_state is not None:
+            for key, record in self._backfill_state.load().items():
+                state = backfill_alert_state(record.status, record.last_outcome)
+                if state is not None:
+                    observed[f"backfill:{key}"] = None if state == "ok" else state
+
+        next_state, alerts = evaluate(self._alert_state, observed)
+        if not alerts:
+            return
+
+        sent_all = True
+        for alert in alerts:
+            try:
+                self._notifier.notify(alert.title, alert.message)
+            except Exception as exc:
+                sent_all = False
+                log.warning("Alert notify failed for %s: %s", alert.key, exc)
+
+        if sent_all:
+            self._alert_state = next_state
+            if self._alert_state_store is not None:
+                try:
+                    self._alert_state_store.save(self._alert_state)
+                except Exception as exc:
+                    log.warning("Could not persist alert state: %s", exc)
 
     # --- historical backfill ---------------------------------------------------
 

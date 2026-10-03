@@ -4,10 +4,17 @@ x-openf1-env: &openf1-env
   MONGO_CONNECTION_STRING: ${MONGO_CONNECTION_STRING:-mongodb://mongo:27017}
   OPENF1_DB_NAME: ${OPENF1_DB_NAME:-openf1-livetiming}
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   mongo:
     image: mongo:7  # mongo 8 crashes on Linux kernel >= 6.19 (SERVER-121912)
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - mongo-data:/data/db
     # Local debugging only; never reachable from outside the host.
@@ -25,8 +32,9 @@ services:
       context: .
       dockerfile: openf1/Dockerfile
       target: openf1
-    image: f1-tracker/openf1:local
+    image: ${IMAGE_PREFIX:-f1-tracker}-api:${IMAGE_TAG:-local}
     restart: unless-stopped
+    logging: *default-logging
     environment:
       <<: *openf1-env
     ports:
@@ -46,18 +54,24 @@ services:
       context: .
       dockerfile: openf1/Dockerfile
       target: scheduler
-    image: f1-tracker/scheduler:local
+    image: ${IMAGE_PREFIX:-f1-tracker}-scheduler:${IMAGE_TAG:-local}
     restart: unless-stopped
+    logging: *default-logging
     init: true  # reaps the ingestor's child processes
     stop_grace_period: 60s  # lets the scheduler stop the ingestor cleanly
     environment:
       <<: *openf1-env
       F1_TOKEN: ${F1_TOKEN:-}
+      NTFY_TOPIC: ${NTFY_TOPIC:-}
+      TOKEN_CHECK_MINUTES: ${TOKEN_CHECK_MINUTES:-360}
       SCHEDULE_CACHE_PATH: /data/schedule-cache.json
       POLL_SECONDS: ${POLL_SECONDS:-30}
       SYNC_LOCAL_SCHEDULE: ${SYNC_LOCAL_SCHEDULE:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # Historical backfill from the F1 static archive (see README).
+      # Historical backfill from the F1 static archive (see README). Default
+      # true suits local dev (there is usually recent data worth
+      # backfilling). For a first production deploy, set
+      # BACKFILL_ENABLED=false in infra/.env -- see RUNBOOK.md.
       BACKFILL_ENABLED: ${BACKFILL_ENABLED:-true}
       BACKFILL_PUBLISH_DELAY_MINUTES: ${BACKFILL_PUBLISH_DELAY_MINUTES:-60}
       BACKFILL_RETRY_MINUTES: ${BACKFILL_RETRY_MINUTES:-30}
@@ -70,6 +84,24 @@ services:
       mongo:
         condition: service_healthy
 
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    image: ${IMAGE_PREFIX:-f1-tracker}-web:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      OPENF1_SELF_HOSTED_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - web-cache:/cache
+    depends_on:
+      api:
+        condition: service_started
+
 volumes:
   mongo-data:
   scheduler-data:
+  web-cache:
