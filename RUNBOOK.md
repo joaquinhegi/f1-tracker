@@ -18,7 +18,8 @@ on the tailnet (`tailscale up --ssh`), from `/opt/f1-tracker`.
    f1-tracker-watchdog.timer f1-tracker-backup.timer` are both active.
    `configure_rclone_remote` is skipped with a `WARN` at this point because
    `infra/.env` does not exist yet -- expected, not an error.
-5. Create `infra/.env` from `infra/.env.example` with real values. Never
+5. Create `infra/.env` from `infra/.env.example` with real values (or let
+   the deploy workflow render it, see `DEPLOY_CHECKLIST.md`). Never
    commit it. Required: `RCLONE_BUCKET`, `OCI_NAMESPACE`, `OCI_COMPARTMENT`,
    `OCI_REGION` (nightly backups), `IMAGE_PREFIX`/`IMAGE_TAG` (image pulls).
    For the first deploy only, also set `BACKFILL_ENABLED=false` (the
@@ -33,6 +34,14 @@ on the tailnet (`tailscale up --ssh`), from `/opt/f1-tracker`.
 
 ## Deploy / update
 
+Preferred: `.github/workflows/deploy.yml` deploys automatically after every
+green CI run on `main`, and on demand with `gh workflow run deploy.yml`
+(`-f image_tag=sha-<short>` to roll back). It renders `infra/.env` from the
+`production` environment's secrets/variables, so on the VM that file is
+managed by the workflow. One-time setup: [`DEPLOY_CHECKLIST.md`](DEPLOY_CHECKLIST.md).
+
+Manual fallback:
+
 ```bash
 cd /opt/f1-tracker && git pull
 cd infra && docker compose pull && docker compose up -d --no-build
@@ -42,6 +51,9 @@ Rollback: edit `IMAGE_TAG` in `infra/.env` to the previous `sha-<short>`,
 then re-run `docker compose up -d --no-build`.
 
 ## Token refresh (F1TV, expires ~every 4 days)
+
+Preferred: `gh secret set F1_TOKEN --env production && gh workflow run deploy.yml`.
+Manual fallback (overwritten by the next workflow deploy):
 
 1. Get a fresh token (see `infra/README.md` section 1).
 2. `$EDITOR infra/.env` and replace `F1_TOKEN=`.
